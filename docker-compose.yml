@@ -1,0 +1,82 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: incidentsync-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: incidentsync
+      POSTGRES_PASSWORD: incidentsync
+      POSTGRES_DB: incidentsync
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U incidentsync"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: incidentsync-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- Backend services (build once each service has a Dockerfile) ---
+  # Uncomment as each service becomes ready.
+
+  # auth-service:
+  #   build: ./services/auth-service
+  #   container_name: incidentsync-auth-service
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   ports:
+  #     - "8081:8081"
+  #   environment:
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/incidentsync
+  #     SPRING_DATASOURCE_USERNAME: incidentsync
+  #     SPRING_DATASOURCE_PASSWORD: incidentsync
+
+  # incident-service:
+  #   build: ./services/incident-service
+  #   container_name: incidentsync-incident-service
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   ports:
+  #     - "8082:8082"
+  #   environment:
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/incidentsync
+  #     SPRING_DATASOURCE_USERNAME: incidentsync
+  #     SPRING_DATASOURCE_PASSWORD: incidentsync
+
+  # sync-service:
+  #   build: ./services/sync-service
+  #   container_name: incidentsync-sync-service
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #   ports:
+  #     - "8083:8083"
+  #   environment:
+  #     SPRING_REDIS_HOST: redis
+  #     SPRING_REDIS_PORT: 6379
+
+  # frontend:
+  #   build: ./frontend
+  #   container_name: incidentsync-frontend
+  #   ports:
+  #     - "3000:3000"
+
+volumes:
+  postgres_data:
